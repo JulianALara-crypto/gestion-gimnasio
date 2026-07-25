@@ -1,10 +1,12 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import requests
 import os
 from datetime import datetime, timedelta
 from PIL import Image
-import urllib.parse
+
+# ⚠️ PEGA TU URL DE GOOGLE ENTRE LAS COMILLAS AQUÍ ABAJO:
+URL_API = "https://script.google.com/macros/s/AKfycbz1V0KAfke8l-CIjdNdE0IkJqpQpb-Dsxfc1mQsJb0acVKPzCZcA231ch8CXbfw96JU/exec"
 
 ruta_logo_gym = "logo_gym.png" 
 icono_pestana = Image.open(ruta_logo_gym) if os.path.exists(ruta_logo_gym) else "🏋️‍♂️"
@@ -23,11 +25,14 @@ st.markdown("""
 
 METODOS_PAGO = ["Efectivo", "Transferencia Bancaria", "Nequi", "DaviPlata", "Bre-B", "Tarjeta Crédito/Débito", "Otro"]
 
-conn = st.connection("gsheets", type=GSheetsConnection)
-
 def cargar_datos():
     try:
-        return conn.read(ttl=0, dtype=str).fillna("")
+        response = requests.get(URL_API)
+        datos = response.json()
+        if len(datos) <= 1:
+            return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
+        # Tomamos la primera fila como nombres de columna y el resto como datos
+        return pd.DataFrame(datos[1:], columns=datos[0])
     except Exception:
         return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
 
@@ -44,7 +49,7 @@ opcion = st.sidebar.radio("MENÚ DE OPERACIONES", [
     "🆕 Registrar Nuevo Cliente", 
     "🔄 Renovación de Membresía", 
     "🚨 Alertas de Vencimiento",
-    "📊 Ver Base de Datos / Descargar"
+    "📊 Ver Base de Datos"
 ])
 
 if opcion == "🆕 Registrar Nuevo Cliente":
@@ -63,32 +68,29 @@ if opcion == "🆕 Registrar Nuevo Cliente":
         if btn_registrar:
             if not cedula or not nombre or not whatsapp:
                 st.error("⚠️ Los campos Cédula, Nombre y WhatsApp son obligatorios.")
-            elif not df_clientes.empty and cedula in df_clientes["cedula"].values:
-                st.error("❌ Esta cédula ya se encuentra registrada. Usa el módulo de 'Renovación de Membresía'.")
+            elif not df_clientes.empty and "cedula" in df_clientes.columns and str(cedula) in df_clientes["cedula"].astype(str).values:
+                st.error("❌ Esta cédula ya se encuentra registrada.")
             else:
                 fecha_vencimiento = fecha_ingreso + timedelta(days=30)
-                nuevo_registro = pd.DataFrame([{
-                    "cedula": str(cedula),
-                    "nombre_completo": str(nombre),
-                    "eps": str(eps) if eps else "NO REGISTRA",
-                    "whatsapp": str(whatsapp),
-                    "metodo_pago": str(metodo_pago),
-                    "fecha_ingreso": fecha_ingreso.strftime("%Y-%m-%d"),
-                    "valor_pagado": str(int(valor_pagado)),
-                    "fecha_vencimiento": fecha_vencimiento.strftime("%Y-%m-%d")
-                }])
-                
-                df_actualizado = pd.concat([df_clientes, nuevo_registro], ignore_index=True)
-                conn.update(data=df_actualizado)
-                st.success(f"🎉 ¡Cliente {nombre} registrado con éxito! Guardado en la nube.")
-                st.rerun()
+                fila = [
+                    str(cedula), str(nombre), str(eps) if eps else "NO REGISTRA",
+                    str(whatsapp), str(metodo_pago), fecha_ingreso.strftime("%Y-%m-%d"),
+                    str(int(valor_pagado)), fecha_vencimiento.strftime("%Y-%m-%d")
+                ]
+                try:
+                    res = requests.post(URL_API, json={"action": "registrar", "row": fila})
+                    st.success(f"🎉 ¡Cliente {nombre} registrado con éxito!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al conectar con la base de datos: {e}")
 
 elif opcion == "🔄 Renovación de Membresía":
     st.subheader("Renovación de Clientes Antiguos")
     cedula_buscar = st.text_input("Buscar Cliente por Cédula / ID:").strip()
     
-    if cedula_buscar and not df_clientes.empty:
-        registro_existente = df_clientes[df_clientes["cedula"] == cedula_buscar]
+    if cedula_buscar and not df_clientes.empty and "cedula" in df_clientes.columns:
+        df_clientes["cedula"] = df_clientes["cedula"].astype(str)
+        registro_existente = df_clientes[df_clientes["cedula"] == str(cedula_buscar)]
         if not registro_existente.empty:
             cliente = registro_existente.iloc[0]
             st.info(f"👤 *Cliente Encontrado:* {cliente['nombre_completo']}")
@@ -103,26 +105,35 @@ elif opcion == "🔄 Renovación de Membresía":
                 metodo_pago_act = st.selectbox("Nuevo Método de Pago:", METODOS_PAGO, index=index_metodo)
                 fecha_ingreso_act = st.date_input("Nueva Fecha de Pago:", datetime.today())
                 
-                try:
-                    val_defecto = int(float(cliente['valor_pagado']))
-                except Exception:
-                    val_defecto = 0
+                try: val_defecto = int(float(cliente['valor_pagado']))
+                except: val_defecto = 0
                     
                 valor_pagado_act = st.number_input("Nuevo Valor Pagado ($):", min_value=0, step=1000, value=val_defecto)
                 
                 btn_renovar = st.form_submit_button("Procesar Renovación de Membresía")
                 if btn_renovar:
                     fecha_vencimiento_act = fecha_ingreso_act + timedelta(days=30)
-                    
-                    df_clientes.loc[df_clientes["cedula"] == cedula_buscar, ["eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"]] = [
-                        str(eps_act), str(whatsapp_act), str(metodo_pago_act), fecha_ingreso_act.strftime("%Y-%m-%d"), str(int(valor_pagado_act)), fecha_vencimiento_act.strftime("%Y-%m-%d")
+                    fila_actualizada = [
+                        str(cedula_buscar), str(cliente['nombre_completo']), str(eps_act),
+                        str(whatsapp_act), str(metodo_pago_act), fecha_ingreso_act.strftime("%Y-%m-%d"),
+                        str(int(valor_pagado_act)), fecha_vencimiento_act.strftime("%Y-%m-%d")
                     ]
-                    conn.update(data=df_clientes)
-                    st.success(f"🔄 ¡Membresía renovada correctamente en la nube!")
-                    st.rerun()
+                    try:
+                        requests.post(URL_API, json={"action": "actualizar", "cedula": cedula_buscar, "row": fila_actualizada})
+                        st.success(f"🔄 ¡Membresía renovada correctamente!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al conectar con la base de datos: {e}")
         else:
             st.error("❌ La cédula ingresada no coincide con ningún cliente registrado.")
 
 elif opcion == "🚨 Alertas de Vencimiento":
     st.subheader("Control de Vencimientos")
     st.info("Módulo de alertas activo.")
+
+elif opcion == "📊 Ver Base de Datos":
+    st.subheader("Registros en la Base de Datos")
+    if not df_clientes.empty:
+        st.dataframe(df_clientes)
+    else:
+        st.info("La base de datos se encuentra vacía o no se pudo leer.")
