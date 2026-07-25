@@ -42,6 +42,16 @@ METODOS_PAGO = [
     "Otro",
 ]
 
+# --- 📋 NUEVOS PLANES DEL GIMNASIO ---
+PLANES_GYM = {
+    "Clase Individual (1 día)": 1,
+    "Quincena (15 días)": 15,
+    "Mensualidad (30 días)": 30,
+    "Trimestre (90 días)": 90,
+    "Año Completo (365 días)": 365
+}
+
+
 # --- 🚀 CACHÉ EXCLUSIVO PARA GOOGLE APPS SCRIPT ---
 @st.cache_data(ttl=600)
 def cargar_datos():
@@ -140,6 +150,10 @@ if opcion == "🆕 Registrar Nuevo Cliente":
         eps = st.text_input("Entidad de Salud (EPS):").strip()
         whatsapp = st.text_input("Número de WhatsApp (10 dígitos):").strip()
         metodo_pago = st.selectbox("Método de Pago:", METODOS_PAGO)
+        
+        # Nuevo selector de plan
+        plan_elegido = st.selectbox("Plan a Adquirir:", list(PLANES_GYM.keys()))
+        
         fecha_ingreso = st.date_input("Fecha de Ingreso:", datetime.today())
         valor_pagado = st.number_input(
             "Valor Pagado ($):", min_value=0, step=1000, value=0
@@ -153,7 +167,10 @@ if opcion == "🆕 Registrar Nuevo Cliente":
             elif not df_clientes.empty and str(cedula) in df_clientes["cedula"].astype(str).values:
                 st.error("❌ Esta cédula ya se encuentra registrada.")
             else:
-                fecha_vencimiento = fecha_ingreso + timedelta(days=30)
+                # Calcula los días según el plan seleccionado
+                dias_plan = PLANES_GYM[plan_elegido]
+                fecha_vencimiento = fecha_ingreso + timedelta(days=dias_plan)
+                
                 fila = [
                     str(cedula),
                     str(nombre),
@@ -170,10 +187,11 @@ if opcion == "🆕 Registrar Nuevo Cliente":
                     )
                     
                     st.cache_data.clear()
-                    st.success(f"🎉 ¡Cliente {nombre} registrado con éxito!")
+                    st.success(f"🎉 ¡Cliente {nombre} registrado con éxito en el plan {plan_elegido}!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al conectar con la base de datos: {e}")
+
 
 elif opcion == "🔄 Renovación de Membresía":
     st.subheader("Renovación de Clientes Antiguos")
@@ -206,6 +224,10 @@ elif opcion == "🔄 Renovación de Membresía":
                 metodo_pago_act = st.selectbox(
                     "Nuevo Método de Pago:", METODOS_PAGO, index=index_metodo
                 )
+                
+                # 🆕 SELECTOR DE PLAN EN LA RENOVACIÓN
+                plan_renovacion = st.selectbox("Plan de Renovación:", list(PLANES_GYM.keys()))
+                
                 fecha_ingreso_act = st.date_input(
                     "Nueva Fecha de Pago:", datetime.today()
                 )
@@ -224,7 +246,10 @@ elif opcion == "🔄 Renovación de Membresía":
 
                 btn_renovar = st.form_submit_button("Procesar Renovación de Membresía")
                 if btn_renovar:
-                    fecha_vencimiento_act = fecha_ingreso_act + timedelta(days=30)
+                    # 🆕 CÁLCULO DINÁMICO DE DÍAS SEGÚN EL PLAN SELECCIONADO
+                    dias_renovacion = PLANES_GYM[plan_renovacion]
+                    fecha_vencimiento_act = fecha_ingreso_act + timedelta(days=dias_renovacion)
+                    
                     fila_actualizada = [
                         str(cedula_buscar),
                         str(cliente["nombre_completo"]),
@@ -246,7 +271,7 @@ elif opcion == "🔄 Renovación de Membresía":
                         )
                         
                         st.cache_data.clear()
-                        st.success("🔄 ¡Membresía renovada correctamente!")
+                        st.success(f"🔄 ¡Membresía renovada con éxito en el plan {plan_renovacion}!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al conectar con la base de datos: {e}")
@@ -254,6 +279,7 @@ elif opcion == "🔄 Renovación de Membresía":
             st.error(
                 "❌ La cédula ingresada no coincide con ningún cliente registrado."
             )
+
 
 elif opcion == "🚨 Alertas de Vencimiento":
     st.subheader("Control de Mensualidades por Vencer o Vencidas")
