@@ -42,7 +42,8 @@ METODOS_PAGO = [
     "Otro",
 ]
 
-
+# --- 🚀 CACHÉ EXCLUSIVO PARA GOOGLE APPS SCRIPT ---
+@st.cache_data(ttl=600)
 def cargar_datos():
     try:
         response = requests.get(URL_API)
@@ -167,6 +168,8 @@ if opcion == "🆕 Registrar Nuevo Cliente":
                     res = requests.post(
                         URL_API, json={"action": "registrar", "row": fila}
                     )
+                    
+                    st.cache_data.clear()
                     st.success(f"🎉 ¡Cliente {nombre} registrado con éxito!")
                     st.rerun()
                 except Exception as e:
@@ -230,7 +233,7 @@ elif opcion == "🔄 Renovación de Membresía":
                         str(metodo_pago_act),
                         fecha_ingreso_act.strftime("%Y-%m-%d"),
                         str(int(valor_pagado_act)),
-                        fecha_vencimiento_act.strftime("%Y-%m-%d"),
+                        fecha_vencimiento_act.strftime("%Y-%m-%d")
                     ]
                     try:
                         requests.post(
@@ -241,6 +244,8 @@ elif opcion == "🔄 Renovación de Membresía":
                                 "row": fila_actualizada,
                             },
                         )
+                        
+                        st.cache_data.clear()
                         st.success("🔄 ¡Membresía renovada correctamente!")
                         st.rerun()
                     except Exception as e:
@@ -257,23 +262,19 @@ elif opcion == "🚨 Alertas de Vencimiento":
     if not df_clientes.empty:
         df_calculo = df_clientes.copy()
         
-        # Parseo flexible que soporta distintos formatos sin generar NaT
         df_calculo["fecha_vencimiento_dt"] = pd.to_datetime(
             df_calculo["fecha_vencimiento"], 
             format="mixed", 
-            dayfirst=True, 
+            dayfirst=True,
             errors="coerce"
         ).dt.date
         
-        clientes_alerta = df_calculo[
-            df_calculo["fecha_vencimiento_dt"] <= (hoy + timedelta(days=3))
-        ]
-
+        clientes_alerta = df_calculo[df_calculo["fecha_vencimiento_dt"] <= (hoy + timedelta(days=3))]
+        
         if not clientes_alerta.empty:
             st.warning(f"Se encontraron {len(clientes_alerta)} mensualidades que requieren atención inmediata.")
             for idx, fila in clientes_alerta.iterrows():
                 estado = "🔴 VENCIDO" if fila["fecha_vencimiento_dt"] < hoy else "🟡 POR VENCER"
-                
                 num_celular = str(fila['whatsapp']).strip().split('.')[0].strip()
                 if not num_celular.startswith("57"):
                     num_celular = "57" + num_celular
