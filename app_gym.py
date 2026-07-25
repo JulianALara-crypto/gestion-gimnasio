@@ -130,8 +130,66 @@ elif opcion == "🔄 Renovación de Membresía":
             st.error("❌ La cédula ingresada no coincide con ningún cliente registrado.")
 
 elif opcion == "🚨 Alertas de Vencimiento":
-    st.subheader("Control de Vencimientos")
-    st.info("Módulo de alertas activo.")
+    st.subheader("Control y Alertas de Membresías")
+    
+    if not df_clientes.empty and "fecha_vencimiento" in df_clientes.columns:
+        # Clonamos el dataframe para no dañar los datos originales
+        df_alertas = df_clientes.copy()
+        
+        # Convertimos las fechas de texto a fechas reales de Python de forma segura
+        df_alertas["fecha_vencimiento"] = pd.to_datetime(df_alertas["fecha_vencimiento"], errors="coerce").dt.date
+        fecha_hoy = datetime.today().date()
+        
+        # Filtramos filas que tengan fechas válidas
+        df_alertas = df_alertas.dropna(subset=["fecha_vencimiento"])
+        
+        # Calculamos cuántos días le quedan a cada cliente
+        df_alertas["Dias_Restantes"] = df_alertas["fecha_vencimiento"].apply(lambda x: (x - fecha_hoy).days)
+        
+        # Clasificamos a los clientes en Vencidos o Próximos a Vencer (en menos de 5 días)
+        df_vencidos = df_alertas[df_alertas["Dias_Restantes"] <= 5].sort_values(by="Dias_Restantes")
+        
+        if not df_vencidos.empty:
+            st.warning(f"🚨 Se encontraron {len(df_vencidos)} clientes con membresía vencida o por vencer.")
+            
+            for index, fila in df_vencidos.iterrows():
+                # Configuramos el estado visual según los días restantes
+                if fila['Dias_Restantes'] < 0:
+                    estado = f"🔴 VENCIDO hace {abs(fila['Dias_Restantes'])} días"
+                elif fila['Dias_Restantes'] == 0:
+                    estado = "🟡 VENCE HOY"
+                else:
+                    estado = f"🟢 Vence en {fila['Dias_Restantes']} días"
+                
+                # Armamos una tarjeta visual limpia para cada cliente
+                with st.container():
+                    col_info, col_accion = st.columns([3, 1])
+                    
+                    with col_info:
+                        st.markdown(f"""
+                        **👤 {fila['nombre_completo']}**  
+                        * **Cédula / ID:** {fila['cedula']}  
+                        * **Fecha de Vencimiento:** {fila['fecha_vencimiento'].strftime('%d/%m/%Y')}  
+                        * **Estado:** {estado}
+                        """)
+                    
+                    with col_accion:
+                        # Limpiamos el número de WhatsApp quitando espacios
+                        num_whatsapp = str(fila['whatsapp']).strip()
+                        # Texto predefinido y automatizado para el cobro
+                        mensaje_cobro = f"Hola {fila['nombre_completo']}, te saludamos de Power Training Gym. Te recordamos que tu membresía venció el {fila['fecha_vencimiento'].strftime('%d/%m/%Y')}. ¡Te esperamos para renovar!"
+                        mensaje_codificado = urllib.parse.quote(mensaje_cobro)
+                        url_whatsapp = f"https://wa.me{num_whatsapp}?text={mensaje_codificado}"
+                        
+                        # Botón que redirecciona directamente a la API web de WhatsApp
+                        st.link_button("💬 Cobrar", url_whatsapp, use_container_width=True)
+                    
+                    st.markdown("---")
+        else:
+            st.success("🎉 ¡Excelente! No tienes clientes vencidos ni próximos a vencer en los siguientes 5 días.")
+    else:
+        st.info("La base de datos se encuentra vacía. No hay alertas que procesar.")
+
 
 elif opcion == "📊 Ver Base de Datos":
     st.subheader("Registros en la Base de Datos")
