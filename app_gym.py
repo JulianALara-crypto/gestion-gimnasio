@@ -1,12 +1,4 @@
-import os
-from datetime import datetime, timedelta
-import pandas as pd
-
-# 1. USAMOS LA RUTA EXACTA DE TU CARPETA DE WINDOWS
-ruta_app = r"C:\Users\javila\gestion-gimnasio\app_gym.py"
-
-def generar_codigo_nube():
-    return f'''import streamlit as st
+import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import os
@@ -21,11 +13,11 @@ st.set_page_config(page_title="Gestor Gimnasio", page_icon=icono_pestana, layout
 
 st.markdown("""
     <style>
-        .stApp {{ background-color: #111111; }}
-        h1, h2, h3, h4 {{ color: #ffffff !important; text-align: center; }}
-        p, label, .stMarkdown {{ color: #dddddd !important; }}
-        div[data-testid="stDecoration"] {{ display: none; }}
-        .block-container {{ padding-top: 2rem; }}
+        .stApp { background-color: #111111; }
+        h1, h2, h3, h4 { color: #ffffff !important; text-align: center; }
+        p, label, .stMarkdown { color: #dddddd !important; }
+        div[data-testid="stDecoration"] { display: none; }
+        .block-container { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -75,7 +67,7 @@ if opcion == "🆕 Registrar Nuevo Cliente":
                 st.error("❌ Esta cédula ya se encuentra registrada. Usa el módulo de 'Renovación de Membresía'.")
             else:
                 fecha_vencimiento = fecha_ingreso + timedelta(days=30)
-                nuevo_registro = pd.DataFrame([{{
+                nuevo_registro = pd.DataFrame([{
                     "cedula": str(cedula),
                     "nombre_completo": str(nombre),
                     "eps": str(eps) if eps else "NO REGISTRA",
@@ -84,11 +76,11 @@ if opcion == "🆕 Registrar Nuevo Cliente":
                     "fecha_ingreso": fecha_ingreso.strftime("%Y-%m-%d"),
                     "valor_pagado": str(int(valor_pagado)),
                     "fecha_vencimiento": fecha_vencimiento.strftime("%Y-%m-%d")
-                }}])
+                }])
                 
                 df_actualizado = pd.concat([df_clientes, nuevo_registro], ignore_index=True)
                 conn.update(data=df_actualizado)
-                st.success(f"🎉 ¡Cliente {{nombre}} registrado con éxito! Guardado en la nube.")
+                st.success(f"🎉 ¡Cliente {nombre} registrado con éxito! Guardado en la nube.")
                 st.rerun()
 
 elif opcion == "🔄 Renovación de Membresía":
@@ -99,7 +91,7 @@ elif opcion == "🔄 Renovación de Membresía":
         registro_existente = df_clientes[df_clientes["cedula"] == cedula_buscar]
         if not registro_existente.empty:
             cliente = registro_existente.iloc[0]
-            st.info(f"👤 *Cliente Encontrado:* {{cliente['nombre_completo']}}")
+            st.info(f"👤 *Cliente Encontrado:* {cliente['nombre_completo']}")
             
             with st.form("form_renovacion"):
                 st.text_input("Nombre Completo:", value=cliente['nombre_completo'], disabled=True)
@@ -133,11 +125,4 @@ elif opcion == "🔄 Renovación de Membresía":
 
 elif opcion == "🚨 Alertas de Vencimiento":
     st.subheader("Control de Vencimientos")
-  L  st.info("Módulo de alertas activo.")
-'''
-
-# 2. ESCRITURA DEL ARCHIVO FORZANDO LA RUTA
-with open(ruta_app, "w", encoding="utf-8") as f:
-    f.write(generar_codigo_nube())
-
-print(f"🚀 Archivo actualizado exitosamente en: {ruta_app}")
+    st.info("Módulo de alertas activo.")
