@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 
 # ⚠️ PEGA TU URL DE GOOGLE ENTRE LAS COMILLAS AQUÍ ABAJO:
-URL_API = "https://script.google.com/macros/s/AKfycbz1V0KAfke8l-CIjdNdE0IkJqpQpb-Dsxfc1mQsJb0acVKPzCZcA231ch8CXbfw96JU/exec"
+URL_API = "https://script.google.com/macros/s/AKfycbx8WbLwZfPztKvvWy-G5kjEu8gPWGajGl3t5APuRTL1c9gHVhS9O97gYK43VIiEqDpC/exec"
 
 ruta_logo_gym = "logo_gym.png" 
 icono_pestana = Image.open(ruta_logo_gym) if os.path.exists(ruta_logo_gym) else "🏋️‍♂️"
@@ -31,10 +31,12 @@ def cargar_datos():
         datos = response.json()
         if len(datos) <= 1:
             return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
-        # Tomamos la primera fila como nombres de columna y el resto como datos
+        # datos[0] contiene los nombres de las columnas ['cedula', 'nombre_completo', ...]
+        # datos[1:] contiene las filas de los clientes registrados
         return pd.DataFrame(datos[1:], columns=datos[0])
     except Exception:
         return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
+
 
 df_clientes = cargar_datos()
 
