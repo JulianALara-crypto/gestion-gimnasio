@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import urllib.parse
 from datetime import datetime, timedelta
 from PIL import Image
 
