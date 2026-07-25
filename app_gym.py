@@ -33,7 +33,6 @@ def cargar_datos():
         if len(datos) <= 1:
             return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
         
-        # CORRECCIÓN AQUÍ: Forzamos las cabeceras exactas para mapear bien las columnas de WhatsApp y Fechas
         columnas_esperadas = ["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"]
         df = pd.DataFrame(datos[1:], columns=columnas_esperadas)
         return df
@@ -133,26 +132,29 @@ elif opcion == "🔄 Renovación de Membresía":
             st.error("❌ La cédula ingresada no coincide con ningún cliente registrado.")
 
 elif opcion == "🚨 Alertas de Vencimiento":
-    st.subheader("Control y Alertas de Membresías")
+    st.subheader("Control de Mensualidades por Vencer o Vencidas")
+    hoy = datetime.today().date()
     
     if not df_clientes.empty:
-        df_alertas = df_clientes.copy()
-        df_alertas["fecha_vencimiento"] = pd.to_datetime(df_alertas["fecha_vencimiento"], errors="coerce").dt.date
-        fecha_hoy = datetime.today().date()
-        df_alertas = df_alertas.dropna(subset=["fecha_vencimiento"])
-        df_alertas["Dias_Restantes"] = df_alertas["fecha_vencimiento"].apply(lambda x: (x - fecha_hoy).days)
-        df_vencidos = df_alertas[df_alertas["Dias_Restantes"] <= 5].sort_values(by="Dias_Restantes")
+        df_calculo = df_clientes.copy()
+        df_calculo["fecha_vencimiento_dt"] = pd.to_datetime(df_calculo["fecha_vencimiento"], errors='coerce').dt.date
+        clientes_alerta = df_calculo[df_calculo["fecha_vencimiento_dt"] <= (hoy + timedelta(days=3))]
         
-        if not df_vencidos.empty:
-            st.warning(f"🚨 Se encontraron {len(df_vencidos)} clientes con membresía vencida o por vencer.")
-            
-            for index, fila in df_vencidos.iterrows():
-                if fila['Dias_Restantes'] < 0:
-                    estado = f"🔴 VENCIDO hace {abs(fila['Dias_Restantes'])} días"
-                elif fila['Dias_Restantes'] == 0:
-                    estado = "🟡 VENCE HOY"
-                else:
-                    estado = f"🟢 Vence en {fila['Dias_Restantes']} días"
+        if not clientes_alerta.empty:
+            st.warning(f"Se encontraron {len(clientes_alerta)} mensualidades que requieren atención inmediata.")
+            for idx, fila in clientes_alerta.iterrows():
+                estado = "🔴 VENCIDO" if fila["fecha_vencimiento_dt"] < hoy else "🟡 POR VENCER"
+                
+                # --- LIMPIEZA DE NÚMERO USANDO TU LÓGICA ANTERIOR ---
+                num_celular = str(fila['whatsapp']).strip().split('.')[0]
+                if not num_celular.startswith("57"):
+                    num_celular = "57" + num_celular
+                
+                texto_base = f"Hola {fila['nombre_completo']}, te saludamos de Power Training Gym. Te recordamos que tu mensualidad presenta un estado {estado} con fecha de corte el {fila['fecha_vencimiento']}. ¡Te esperamos para seguir entrenando juntos!"
+                texto_codificado = urllib.parse.quote(texto_base)
+                
+                # --- ENLACE CON LA ESTRUCTURA QUE SIEMPRE TE FUNCIONÓ ---
+                whatsapp_url = f"https://wa.me/{num_celular}?text={texto_codificado}"
                 
                 with st.container():
                     col_info, col_accion = st.columns([3, 1])
@@ -160,22 +162,14 @@ elif opcion == "🚨 Alertas de Vencimiento":
                         st.markdown(f"""
                         **👤 {fila['nombre_completo']}**  
                         * **Cédula / ID:** {fila['cedula']}  
-                        * **Fecha de Vencimiento:** {fila['fecha_vencimiento'].strftime('%d/%m/%Y')}  
+                        * **Fecha de Vencimiento:** {fila['fecha_vencimiento']}  
                         * **Estado:** {estado}
                         """)
                     with col_accion:
-                        # Forzamos la limpieza absoluta del número quitando cualquier decimal o espacio erróneo
-                        num_whatsapp = str(fila['whatsapp']).split('.')[0].strip()
-                        
-                        mensaje_cobro = f"Hola {fila['nombre_completo']}, te saludamos de Power Training Gym. Te recordamos que tu membresía venció el {fila['fecha_vencimiento'].strftime('%d/%m/%Y')}. ¡Te esperamos para renovar!"
-                        mensaje_codificado = urllib.parse.quote(mensaje_cobro)
-                        
-                        # ENLACE TOTALMENTE REESTRUCTURADO Y SEGURO:
-                        url_whatsapp = f"https://whatsapp.com{num_whatsapp}&text={mensaje_codificado}"
-                        st.link_button("💬 Cobrar", url_whatsapp, use_container_width=True)
+                        st.link_button("💬 Cobrar", whatsapp_url, use_container_width=True)
                     st.markdown("---")
         else:
-            st.success("🎉 ¡Excelente! No tienes clientes vencidos ni próximos a vencer en los siguientes 5 días.")
+            st.success("🎉 ¡Excelente! No tienes clientes vencidos ni próximos a vencer en los siguientes 3 días.")
     else:
         st.info("La base de datos se encuentra vacía. No hay alertas que procesar.")
 
