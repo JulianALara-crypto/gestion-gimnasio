@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 
 # ⚠️ URL DE TU API DE GOOGLE APPS SCRIPT
-URL_API = "https://google.com"
+URL_API = "https://script.google.com/macros/s/AKfycbwkP0xrnFx2rhHI9M5DEsW47v_2GSIS9uxMJ-K3wAHEIryIyhEG_eGHKKIf2Im0SppL/exec"
 
 ruta_logo_gym = "logo_gym.png" 
 icono_pestana = Image.open(ruta_logo_gym) if os.path.exists(ruta_logo_gym) else "🏋️‍♂️"
