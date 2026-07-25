@@ -6,8 +6,8 @@ import urllib.parse
 from datetime import datetime, timedelta
 from PIL import Image
 
-# ⚠️ PEGA TU URL DE GOOGLE ENTRE LAS COMILLAS AQUÍ ABAJO:
-URL_API = "https://script.google.com/macros/s/AKfycbx8WbLwZfPztKvvWy-G5kjEu8gPWGajGl3t5APuRTL1c9gHVhS9O97gYK43VIiEqDpC/exec"
+# ⚠️ URL DE TU API DE GOOGLE APPS SCRIPT
+URL_API = "https://google.com"
 
 ruta_logo_gym = "logo_gym.png" 
 icono_pestana = Image.open(ruta_logo_gym) if os.path.exists(ruta_logo_gym) else "🏋️‍♂️"
@@ -32,9 +32,11 @@ def cargar_datos():
         datos = response.json()
         if len(datos) <= 1:
             return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
-        # datos[0] contiene los nombres de las columnas ['cedula', 'nombre_completo', ...]
-        # datos[1:] contiene las filas de los clientes registrados
-        return pd.DataFrame(datos[1:], columns=datos[0])
+        
+        # CORRECCIÓN AQUÍ: Forzamos las cabeceras exactas para mapear bien las columnas de WhatsApp y Fechas
+        columnas_esperadas = ["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"]
+        df = pd.DataFrame(datos[1:], columns=columnas_esperadas)
+        return df
     except Exception:
         return pd.DataFrame(columns=["cedula", "nombre_completo", "eps", "whatsapp", "metodo_pago", "fecha_ingreso", "valor_pagado", "fecha_vencimiento"])
 
@@ -71,7 +73,7 @@ if opcion == "🆕 Registrar Nuevo Cliente":
         if btn_registrar:
             if not cedula or not nombre or not whatsapp:
                 st.error("⚠️ Los campos Cédula, Nombre y WhatsApp son obligatorios.")
-            elif not df_clientes.empty and "cedula" in df_clientes.columns and str(cedula) in df_clientes["cedula"].astype(str).values:
+            elif not df_clientes.empty and str(cedula) in df_clientes["cedula"].astype(str).values:
                 st.error("❌ Esta cédula ya se encuentra registrada.")
             else:
                 fecha_vencimiento = fecha_ingreso + timedelta(days=30)
@@ -91,7 +93,7 @@ elif opcion == "🔄 Renovación de Membresía":
     st.subheader("Renovación de Clientes Antiguos")
     cedula_buscar = st.text_input("Buscar Cliente por Cédula / ID:").strip()
     
-    if cedula_buscar and not df_clientes.empty and "cedula" in df_clientes.columns:
+    if cedula_buscar and not df_clientes.empty:
         df_clientes["cedula"] = df_clientes["cedula"].astype(str)
         registro_existente = df_clientes[df_clientes["cedula"] == str(cedula_buscar)]
         if not registro_existente.empty:
@@ -133,7 +135,7 @@ elif opcion == "🔄 Renovación de Membresía":
 elif opcion == "🚨 Alertas de Vencimiento":
     st.subheader("Control y Alertas de Membresías")
     
-    if not df_clientes.empty and "fecha_vencimiento" in df_clientes.columns:
+    if not df_clientes.empty:
         df_alertas = df_clientes.copy()
         df_alertas["fecha_vencimiento"] = pd.to_datetime(df_alertas["fecha_vencimiento"], errors="coerce").dt.date
         fecha_hoy = datetime.today().date()
@@ -162,12 +164,14 @@ elif opcion == "🚨 Alertas de Vencimiento":
                         * **Estado:** {estado}
                         """)
                     with col_accion:
-                        num_whatsapp = str(fila['whatsapp']).strip()
+                        # Forzamos la limpieza absoluta del número quitando cualquier decimal o espacio erróneo
+                        num_whatsapp = str(fila['whatsapp']).split('.')[0].strip()
+                        
                         mensaje_cobro = f"Hola {fila['nombre_completo']}, te saludamos de Power Training Gym. Te recordamos que tu membresía venció el {fila['fecha_vencimiento'].strftime('%d/%m/%Y')}. ¡Te esperamos para renovar!"
                         mensaje_codificado = urllib.parse.quote(mensaje_cobro)
                         
-                        # LINEA 184 CORREGIDA: Se añade la barra "/" después de wa.me
-                        url_whatsapp = f"https://wa.me{num_whatsapp}?text={mensaje_codificado}"
+                        # ENLACE TOTALMENTE REESTRUCTURADO Y SEGURO:
+                        url_whatsapp = f"https://whatsapp.com{num_whatsapp}&text={mensaje_codificado}"
                         st.link_button("💬 Cobrar", url_whatsapp, use_container_width=True)
                     st.markdown("---")
         else:
