@@ -306,10 +306,10 @@ elif opcion == "🚨 Alertas de Vencimiento":
                     num_celular = "57" + num_celular
                 
                 texto_base = (
-                    f"💪 ¡Hola, {fila['nombre_completo']}! Te saludamos de Power Training Gym ✨. "
+                    f"💪 ¡Hola, {fila['nombre_completo']}! Te saludamos de Power Training Gym. "
                     f"Te recordamos amablemente que tu membresía actual se encuentra con estado: {estado} "
                     f"(Venció el {fila['fecha_vencimiento']}). Te esperamos en las instalaciones para renovar "
-                    f"y seguir entrenando con toda. ¡No pares tu proceso! 🔥🏋️‍♂️"
+                    f"y seguir entrenando con toda. ¡No pares tu proceso!"
                 )
                 texto_codificado = urllib.parse.quote(texto_base)
                 whatsapp_url = f"https://wa.me/{num_celular}?text={texto_codificado}"
